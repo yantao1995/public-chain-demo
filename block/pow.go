@@ -10,7 +10,7 @@ import (
 
 // 0000 0000 0000 0000 1000 0001 1010 ... 0001
 // 256 位hash里面至少要有16个0
-const targetBit = 16
+const targetBit = 8
 
 type ProofOfWork struct {
 	Block  *Block   //要验证的区块
@@ -50,6 +50,11 @@ func (p *ProofOfWork) Run() ([]byte, int64) {
 }
 
 //验证区块的hash值是否有效
-func VerifyProofOfWork(block *Block) bool {
-	return true
+func (p *ProofOfWork) VerifyProofOfWork(block *Block) bool {
+	var hashInt big.Int
+	hashInt.SetBytes(p.Block.Hash)
+	if p.target.Cmp(&hashInt) == 1 {
+		return true
+	}
+	return false
 }

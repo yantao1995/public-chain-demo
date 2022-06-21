@@ -3,6 +3,7 @@ package block
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/gob"
 	"strconv"
 	"time"
 )
@@ -51,6 +52,14 @@ func (b *Block) SetHash() {
 //生成创世区块
 func CreateGenesisBlock(data string) *Block {
 	block := CreateBlock(data, 1, []byte{32: 0})
-	block.SetHash()
+	//block.SetHash()
 	return block
+}
+
+//序列化
+func (b *Block) Serialize() []byte {
+	buffer := bytes.Buffer{}
+	encoder := gob.NewEncoder(&buffer)
+	encoder.Encode(b)
+	return buffer.Bytes()
 }
