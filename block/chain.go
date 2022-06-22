@@ -1,6 +1,8 @@
 package block
 
 import (
+	"errors"
+	"fmt"
 	"log"
 
 	"github.com/boltdb/bolt"
@@ -72,4 +74,28 @@ func (bc *BlockChain) AddBlockToBlockChain(data string, height int64, prevHash [
 		log.Fatalln(err)
 	}
 	bc.Tip = block.Hash
+}
+
+//区块迭代
+func (bc *BlockChain) Iterator() {
+	var block *Block
+	currentHash := bc.Tip
+	for {
+		if err := bc.DB.View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(blockTableName))
+			if b == nil {
+				return errors.New("EOF")
+			}
+			data := b.Get(currentHash)
+			if data == nil {
+				return errors.New("EOF")
+			}
+			block = DeSerialize(data)
+			fmt.Println("block: ", string(block.Data), "currentHash: ", fmt.Sprintf("%x", currentHash))
+			currentHash = block.PrevHash
+			return nil
+		}); err != nil {
+			break
+		}
+	}
 }

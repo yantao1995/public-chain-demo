@@ -63,3 +63,11 @@ func (b *Block) Serialize() []byte {
 	encoder.Encode(b)
 	return buffer.Bytes()
 }
+
+//反序列化
+func DeSerialize(data []byte) *Block {
+	b := &Block{}
+	encoder := gob.NewDecoder(bytes.NewReader(data))
+	encoder.Decode(b)
+	return b
+}
