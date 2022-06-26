@@ -20,7 +20,7 @@ const (
 )
 
 //创建带有创世区块的区块链
-func CreateBlockChainWithGenesisBlock() *BlockChain {
+func CreateBlockChainWithGenesisBlock(address string) *BlockChain {
 
 	db, err := bolt.Open(dbName, 0600, nil)
 	if err != nil {
@@ -34,8 +34,10 @@ func CreateBlockChainWithGenesisBlock() *BlockChain {
 			log.Panic(err)
 		}
 		if b != nil {
+			//创建 Coinbase Transaction
+			txCoinbase := NewCoinBaseTransaction(address)
 			//创建创世区块
-			genesisBlock := CreateGenesisBlock("Genesis Block")
+			genesisBlock := CreateGenesisBlock([]*Transaction{txCoinbase})
 			//存储创世区块
 			err := b.Put(genesisBlock.Hash, genesisBlock.Serialize())
 			if err != nil {
@@ -55,7 +57,7 @@ func CreateBlockChainWithGenesisBlock() *BlockChain {
 
 //增加区块到区块链
 func (bc *BlockChain) AddBlockToBlockChain(data string, height int64, prevHash []byte) {
-	block := CreateBlock(data, height, prevHash)
+	block := CreateBlock(nil, height, prevHash)
 	if err := bc.DB.Update(func(tx *bolt.Tx) error {
 		//检查是否有数据库表
 		b := tx.Bucket([]byte(blockTableName))
@@ -91,11 +93,42 @@ func (bc *BlockChain) Iterator() {
 				return errors.New("EOF")
 			}
 			block = DeSerialize(data)
-			fmt.Println("block: ", string(block.Data), "currentHash: ", fmt.Sprintf("%x", currentHash))
+			fmt.Println("block: ", string(block.HashTransaction()), "currentHash: ", fmt.Sprintf("%x", currentHash))
 			currentHash = block.PrevHash
 			return nil
 		}); err != nil {
 			break
 		}
 	}
+}
+
+//挖矿
+func (bc *BlockChain) MineNewBlock(from, to, amount []string) {
+	var txs []*Transaction
+
+	var block *Block
+
+	bc.DB.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(blockTableName))
+		if bucket != nil {
+			hash := bucket.Get([]byte(NewBlockHash))
+			blockBytes := bucket.Get(hash)
+			block = DeSerialize(blockBytes)
+		}
+		return nil
+	})
+
+	//创建新区块
+	block = CreateBlock(txs, block.Height+1, block.Hash)
+
+	//将新区块存储到数据库
+	bc.DB.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(blockTableName))
+		if bucket != nil {
+			bucket.Put(block.Hash, block.Serialize())
+			bucket.Put([]byte(NewBlockHash), block.Hash)
+			bc.Tip = block.Hash
+		}
+		return nil
+	})
 }

@@ -16,7 +16,7 @@ type Block struct {
 	//当前区块的hash
 	Hash []byte
 	//交易数据
-	Data []byte
+	Txs []*Transaction
 	//区块高度
 	Height int64
 	//Nonce 值
@@ -24,12 +24,12 @@ type Block struct {
 }
 
 //创建新的区块
-func CreateBlock(data string, height int64, prevHash []byte) *Block {
+func CreateBlock(txs []*Transaction, height int64, prevHash []byte) *Block {
 	block := &Block{
 		Timestamp: time.Now().Unix(),
 		PrevHash:  prevHash,
 		Hash:      nil,
-		Data:      []byte(data),
+		Txs:       txs,
 		Height:    height,
 		Nonce:     0,
 	}
@@ -44,14 +44,14 @@ func CreateBlock(data string, height int64, prevHash []byte) *Block {
 func (b *Block) SetHash() {
 	timestamp := []byte(strconv.FormatInt(b.Timestamp, 2))
 	height := []byte(strconv.FormatInt(b.Height, 2))
-	blockBytes := bytes.Join([][]byte{b.PrevHash, timestamp, b.Data, height}, []byte{})
+	blockBytes := bytes.Join([][]byte{b.PrevHash, timestamp, b.HashTransaction(), height}, []byte{})
 	hash := sha256.Sum256(blockBytes)
 	b.Hash = hash[:]
 }
 
 //生成创世区块
-func CreateGenesisBlock(data string) *Block {
-	block := CreateBlock(data, 1, []byte{32: 0})
+func CreateGenesisBlock(txs []*Transaction) *Block {
+	block := CreateBlock(txs, 1, []byte{32: 0})
 	//block.SetHash()
 	return block
 }
@@ -70,4 +70,14 @@ func DeSerialize(data []byte) *Block {
 	encoder := gob.NewDecoder(bytes.NewReader(data))
 	encoder.Decode(b)
 	return b
+}
+
+//交易数据 to Hash
+func (b *Block) HashTransaction() []byte {
+	txHashs := [][]byte{}
+	for k := range b.Txs {
+		txHashs = append(txHashs, b.Txs[k].TxHash)
+	}
+	txHash := sha256.Sum256(bytes.Join(txHashs, []byte{}))
+	return txHash[:]
 }

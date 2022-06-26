@@ -35,7 +35,7 @@ func (p *ProofOfWork) Run() ([]byte, int64) {
 		//将block属性拼接成字节数组
 		dataBytes := bytes.Join([][]byte{
 			p.Block.PrevHash, utils.IntToHex(p.Block.Timestamp),
-			p.Block.Data, utils.IntToHex(targetBit), utils.IntToHex(nonce)}, []byte{})
+			p.Block.HashTransaction(), utils.IntToHex(targetBit), utils.IntToHex(nonce)}, []byte{})
 		//生成hash
 		hash = sha256.Sum256(dataBytes)
 		fmt.Printf("\r%x", hash)

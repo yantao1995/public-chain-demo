@@ -8,7 +8,7 @@ import (
 
 func main() {
 	os.Remove("blockchain.db")
-	blockChain := block.CreateBlockChainWithGenesisBlock()
+	blockChain := block.CreateBlockChainWithGenesisBlock("address")
 	defer blockChain.DB.Close()
 	blockChain.AddBlockToBlockChain("Send 1RMB to zhangsan", 2, blockChain.Tip)
 	fmt.Println()
