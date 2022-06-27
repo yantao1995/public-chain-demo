@@ -45,3 +45,19 @@ func (tx *Transaction) HashTransaction() {
 }
 
 //转账时产生的 Transaction
+func NewSimpleTransaction(from, to string, amount int) *Transaction {
+	var (
+		txInputs  []*TxInput
+		txOutputs []*TxOutput
+	)
+
+	txInput := &TxInput{}
+	txInputs = append(txInputs, txInput)
+
+	txOutput := &TxOutput{}
+	txOutputs = append(txOutputs, txOutput)
+
+	tx := &Transaction{[]byte{}, txInputs, txOutputs}
+	tx.HashTransaction()
+	return tx
+}

@@ -10,10 +10,7 @@ func main() {
 	os.Remove("blockchain.db")
 	blockChain := block.CreateBlockChainWithGenesisBlock("address")
 	defer blockChain.DB.Close()
-	blockChain.AddBlockToBlockChain("Send 1RMB to zhangsan", 2, blockChain.Tip)
-	fmt.Println()
-	blockChain.AddBlockToBlockChain("Send 2RMB to lisi", 3, blockChain.Tip)
-	fmt.Println()
+	blockChain.MineNewBlock([]string{"a"}, []string{"b"}, []string{"1"})
 	fmt.Println("-----------------------")
 	blockChain.Iterator()
 }

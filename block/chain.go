@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 
 	"github.com/boltdb/bolt"
 )
@@ -93,7 +94,11 @@ func (bc *BlockChain) Iterator() {
 				return errors.New("EOF")
 			}
 			block = DeSerialize(data)
-			fmt.Println("block: ", string(block.HashTransaction()), "currentHash: ", fmt.Sprintf("%x", currentHash))
+			fmt.Println("currentHash: ", fmt.Sprintf("%x", currentHash))
+			for k := range block.Txs {
+
+				fmt.Println("from", block.Txs[k].Vins[0].ScriptSig, "to", block.Txs[k].Vouts[0].Money, "amount ", block.Txs[k].Vouts[0].Money)
+			}
 			currentHash = block.PrevHash
 			return nil
 		}); err != nil {
@@ -104,7 +109,13 @@ func (bc *BlockChain) Iterator() {
 
 //挖矿
 func (bc *BlockChain) MineNewBlock(from, to, amount []string) {
+	//建立新交易
+	val, _ := strconv.Atoi(amount[0])
+	tx := NewSimpleTransaction(from[0], to[0], val)
+
+	//
 	var txs []*Transaction
+	txs = append(txs, tx)
 
 	var block *Block
 
