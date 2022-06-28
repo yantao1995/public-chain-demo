@@ -8,3 +8,8 @@ type TxInput struct {
 	//用户名
 	ScriptSig string //用户签名
 }
+
+//判断当前消费是否为address的钱
+func (ti *TxInput) UnLockWithAddress(address string) bool {
+	return ti.ScriptSig == address
+}

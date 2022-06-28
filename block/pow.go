@@ -38,7 +38,7 @@ func (p *ProofOfWork) Run() ([]byte, int64) {
 			p.Block.HashTransaction(), utils.IntToHex(targetBit), utils.IntToHex(nonce)}, []byte{})
 		//生成hash
 		hash = sha256.Sum256(dataBytes)
-		fmt.Printf("\r%x", hash)
+		fmt.Printf("\r%s%x", "当前区块生成hash: ", hash)
 		//将hash存储到 hashInt
 		hashInt.SetBytes(hash[:])
 		//判断hashInt 是否小于 target //判断hash的有效性,如果满足，跳出循环
