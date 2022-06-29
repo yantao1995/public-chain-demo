@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 
 	"github.com/boltdb/bolt"
@@ -83,6 +82,8 @@ func (bc *BlockChain) AddBlockToBlockChain(data string, height int64, prevHash [
 
 //区块迭代
 func (bc *BlockChain) Iterator() {
+	fmt.Println("正常迭代区块....")
+	defer fmt.Println("区块迭代完成.")
 	var block *Block
 	currentHash := bc.Tip
 	for {
@@ -114,7 +115,7 @@ func (bc *BlockChain) MineNewBlock(from, to, amount []string) {
 	var txs []*Transaction
 	for index := range from {
 		val, _ := strconv.Atoi(amount[index])
-		tx := NewSimpleTransaction(from[index], to[index], val, bc, nil)
+		tx := NewSimpleTransaction(from[index], to[index], val, bc, txs)
 		txs = append(txs, tx)
 	}
 	//
@@ -178,9 +179,9 @@ func (bc *BlockChain) UnUTXOs(address string, txs []*Transaction) []*UTXO {
 							continue outLab
 						}
 					}
-					utxo := &UTXO{tx.TxHash, index, out}
-					unUTXOs = append(unUTXOs, utxo)
 				}
+				utxo := &UTXO{tx.TxHash, index, out}
+				unUTXOs = append(unUTXOs, utxo)
 			}
 		}
 	}
@@ -203,8 +204,8 @@ func (bc *BlockChain) UnUTXOs(address string, txs []*Transaction) []*UTXO {
 			block = DeSerialize(data)
 			//
 
-			for _, tx := range block.Txs {
-				handle(tx)
+			for i := len(block.Txs) - 1; i >= 0; i-- {
+				handle(block.Txs[i])
 			}
 			//
 			currentHash = block.PrevHash
@@ -243,8 +244,7 @@ func (bc *BlockChain) FindSpendAbleUTXOs(from string, amount int, txs []*Transac
 		}
 	}
 	if value < int64(amount) {
-		fmt.Printf("%s 余额不足\n", from)
-		os.Exit(1)
+		panic(fmt.Sprintf("%s 余额不足\n", from))
 	}
 	return value, spendAbleUTXO
 }
