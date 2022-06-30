@@ -44,6 +44,10 @@ func (w *Wallet) IsValidAddress(address []byte) bool {
 	versionPublicCheckSumBytes := Base58Decoding(address)
 	bts := versionPublicCheckSumBytes[len(versionPublicCheckSumBytes)-addressCheckSumLen:]
 	versionRipemd160 := versionPublicCheckSumBytes[:len(versionPublicCheckSumBytes)-addressCheckSumLen]
+	//base58编码将首位版本 0x00 去掉了。所以需要手动补0x00， 如果非 0x00，则没有问题
+	if version == 0x00 {
+		versionRipemd160 = append([]byte{version}, versionRipemd160...)
+	}
 	checkBytes := CheckSum(versionRipemd160)
 	return bytes.Compare(checkBytes, bts) == 0
 }
@@ -51,7 +55,7 @@ func (w *Wallet) IsValidAddress(address []byte) bool {
 //根据公钥获取地址
 func (w *Wallet) GetAddress() []byte {
 	// hash160
-	ripemd160Hash := w.Ripemd160Hash(w.PublicKey)
+	ripemd160Hash := Ripemd160Hash(w.PublicKey)
 	versionRipemd160Hash := append([]byte{version}, ripemd160Hash...)
 	checkSumBytes := CheckSum(versionRipemd160Hash)
 	bytes := append(versionRipemd160Hash, checkSumBytes...)
@@ -66,7 +70,7 @@ func CheckSum(payload []byte) []byte {
 }
 
 //获取ripemd160 值
-func (w *Wallet) Ripemd160Hash(publicKey []byte) []byte {
+func Ripemd160Hash(publicKey []byte) []byte {
 	//256
 	hash256 := sha256.New()
 	hash256.Write(publicKey)

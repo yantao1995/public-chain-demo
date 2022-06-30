@@ -21,9 +21,9 @@ func Base58Encoding(strByte []byte) []byte {
 		strTen.DivMod(strTen, strTen58, mod)             //取余运算
 		modSlice = append(modSlice, base58[mod.Int64()]) //存储余数,并将对应值放入其中
 	}
-	// 处理0就是1的情况 0使用字节'1'代替
+	// 由于base58会将0删除，比特币要求在0的位置补上1，即比特币地址由1开始的原因
 	for _, elem := range strByte {
-		if elem != 0 {
+		if elem != 0x00 {
 			break
 		} else if elem == 0 {
 			modSlice = append(modSlice, byte('1'))

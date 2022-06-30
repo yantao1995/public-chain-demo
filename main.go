@@ -9,7 +9,7 @@ import (
 func main() {
 	os.Remove("blockchain.db")
 	os.Remove("blockchain.db.lock")
-	blockChain := block.CreateBlockChainWithGenesisBlock("a")
+	blockChain := block.CreateBlockChainWithGenesisBlock("1NVE728oqBcr1YMnWZ1RQADYdewxoeKuPp")
 	defer blockChain.DB.Close()
 	defer func() {
 		if err := recover(); err != nil {
@@ -19,18 +19,17 @@ func main() {
 	fmt.Println("\n-----------------------")
 	blockChain.Iterator()
 	fmt.Println("-----------------------")
-	fmt.Println("_ balance_  a :", blockChain.GetBalance("a"),
-		"  b : ", blockChain.GetBalance("b"),
-		"  c : ", blockChain.GetBalance("c"))
+	fmt.Println("_ balance_  a :", blockChain.GetBalance("1NVE728oqBcr1YMnWZ1RQADYdewxoeKuPp"))
 	fmt.Println("-----------------------")
-	fmt.Println("-----------------------")
-	blockChain.MineNewBlock([]string{"a", "b"}, []string{"b", "c"}, []string{"3", "2"})
-	blockChain.MineNewBlock([]string{"a"}, []string{"c"}, []string{"1"})
+	blockChain.MineNewBlock([]string{"1NVE728oqBcr1YMnWZ1RQADYdewxoeKuPp"}, []string{"1BiqBw8k7hahNRFVb7WPdVF5trUZohYfvc"}, []string{"3"})
 	fmt.Println("\n-----------------------")
 	blockChain.Iterator()
 	fmt.Println("-----------------------")
-	fmt.Println("_ balance_  a :", blockChain.GetBalance("a"),
-		"  b : ", blockChain.GetBalance("b"),
-		"  c : ", blockChain.GetBalance("c"))
+	fmt.Println("_ balance_  a :", blockChain.GetBalance("1NVE728oqBcr1YMnWZ1RQADYdewxoeKuPp"),
+		"  b : ", blockChain.GetBalance("1BiqBw8k7hahNRFVb7WPdVF5trUZohYfvc"))
 
+	// --------------------------------------------------------------
+
+	wallets := block.NewWallets()
+	wallets.Iterator()
 }

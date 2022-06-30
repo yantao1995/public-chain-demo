@@ -11,3 +11,12 @@ func TestWallet(t *testing.T) {
 	isValid := wallet.IsValidAddress(address)
 	fmt.Printf("%s %v\n", address, isValid)
 }
+
+func TestWallets(t *testing.T) {
+	wallets := NewWallets()
+	fmt.Println(wallets.WalletsMap)
+	Wallet := NewWallet()
+	wallets.WalletsMap[string(Wallet.GetAddress())] = Wallet
+	fmt.Println(wallets.WalletsMap)
+	wallets.CreateNewWallet()
+}

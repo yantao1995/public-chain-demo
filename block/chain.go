@@ -1,6 +1,8 @@
 package block
 
 import (
+	"bytes"
+	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -99,7 +101,7 @@ func (bc *BlockChain) Iterator() {
 			block = DeSerialize(data)
 			fmt.Println("当前区块高度：", block.Height, " hash: ", fmt.Sprintf("%x", currentHash), "\n交易数据:")
 			for k := range block.Txs {
-				fmt.Println("from", block.Txs[k].Vins[0].ScriptSig, "to", block.Txs[k].Vouts[0].ScriptPubKey, "amount ", block.Txs[k].Vouts[0].Money)
+				fmt.Println("from", hex.EncodeToString(block.Txs[k].Vins[0].PublicKey), "to", block.Txs[k].Vouts[0].Ripemd160Hash, "amount ", block.Txs[k].Vouts[0].Money)
 			}
 			currentHash = block.PrevHash
 			return nil
@@ -132,6 +134,13 @@ func (bc *BlockChain) MineNewBlock(from, to, amount []string) {
 		return nil
 	})
 
+	//在建立新区块之前对 txs 进行签名验证
+	for _, tx := range txs {
+		if !bc.VerifyTransaction(tx) {
+			log.Panic("签名验证失败...")
+		}
+	}
+
 	//创建新区块
 	block = CreateBlock(txs, block.Height+1, block.Hash)
 
@@ -163,7 +172,9 @@ func (bc *BlockChain) UnUTXOs(address string, txs []*Transaction) []*UTXO {
 			//vins
 			for _, in := range tx.Vins {
 				//是否能解锁
-				if in.UnLockWithAddress(address) {
+				publicKeyHash := Base58Decoding([]byte(address))
+				ripemd160Hash := publicKeyHash[1 : len(publicKeyHash)-addressCheckSumLen]
+				if in.UnLockWith160Hash(ripemd160Hash) {
 					key := hex.EncodeToString(in.TxHash)
 					spentOutput[key] = append(spentOutput[key], in.Vout)
 				}
@@ -247,4 +258,66 @@ func (bc *BlockChain) FindSpendAbleUTXOs(from string, amount int, txs []*Transac
 		panic(fmt.Sprintf("%s 余额不足\n", from))
 	}
 	return value, spendAbleUTXO
+}
+
+func (bc *BlockChain) SignTransaction(tx *Transaction, private ecdsa.PrivateKey) {
+	if tx.IsCoinbaseTransaction() {
+		return
+	}
+	// 	prevTXs := make(map[string]Transaction)
+	// 	for _, vin := range tx.Vins {
+	// 		prevTX, err := bc.FindTransaction(vin.TxHash)
+	// 		if err != nil {
+	// 			log.Panic(err)
+	// 		}
+	// 		prevTXs[prevTX] = tx
+	// 	}
+}
+
+func (bc *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
+	var block *Block
+	currentHash := bc.Tip
+	var trx *Transaction
+	for trx == nil {
+		if err := bc.DB.View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(blockTableName))
+			if b == nil {
+				return errors.New("EOF")
+			}
+			data := b.Get(currentHash)
+			if data == nil {
+				return errors.New("EOF")
+			}
+			block = DeSerialize(data)
+			//
+			for _, tx := range block.Txs {
+				if bytes.Compare(tx.TxHash, ID) == 0 {
+					trx = tx
+					return nil
+				}
+			}
+			//
+			currentHash = block.PrevHash
+			return nil
+		}); err != nil {
+			break
+		}
+	}
+	if trx == nil {
+		return Transaction{}, nil
+	}
+	return *trx, nil
+}
+
+//验证数字签名
+func (bc *BlockChain) VerifyTransaction(tx *Transaction) bool {
+	prevTXs := make(map[string]Transaction)
+	for _, vin := range tx.Vins {
+		prevTX, err := bc.FindTransaction(vin.TxHash)
+		if err != nil {
+			log.Panic(err)
+		}
+		prevTXs[hex.EncodeToString(prevTX.TxHash)] = prevTX
+	}
+	return tx.Verify(prevTXs)
 }
