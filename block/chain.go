@@ -120,7 +120,9 @@ func (bc *BlockChain) MineNewBlock(from, to, amount []string) {
 		tx := NewSimpleTransaction(from[index], to[index], val, bc, txs)
 		txs = append(txs, tx)
 	}
-	//
+	//奖励
+	tx := NewCoinBaseTransaction(from[0])
+	txs = append(txs, tx)
 
 	var block *Block
 
@@ -134,11 +136,15 @@ func (bc *BlockChain) MineNewBlock(from, to, amount []string) {
 		return nil
 	})
 
+	//未打包的
+	_txs := []*Transaction{}
+
 	//在建立新区块之前对 txs 进行签名验证
 	for _, tx := range txs {
-		if !bc.VerifyTransaction(tx) {
+		if !bc.VerifyTransaction(tx, _txs) {
 			log.Panic("签名验证失败...")
 		}
+		_txs = append(_txs, tx)
 	}
 
 	//创建新区块
@@ -260,21 +266,29 @@ func (bc *BlockChain) FindSpendAbleUTXOs(from string, amount int, txs []*Transac
 	return value, spendAbleUTXO
 }
 
-func (bc *BlockChain) SignTransaction(tx *Transaction, private ecdsa.PrivateKey) {
+func (bc *BlockChain) SignTransaction(tx *Transaction, private ecdsa.PrivateKey, txs []*Transaction) {
 	if tx.IsCoinbaseTransaction() {
 		return
 	}
-	// 	prevTXs := make(map[string]Transaction)
-	// 	for _, vin := range tx.Vins {
-	// 		prevTX, err := bc.FindTransaction(vin.TxHash)
-	// 		if err != nil {
-	// 			log.Panic(err)
-	// 		}
-	// 		prevTXs[prevTX] = tx
-	// 	}
+	prevTXs := make(map[string]Transaction)
+	for _, vin := range tx.Vins {
+		prevTX, err := bc.FindTransaction(vin.TxHash, txs)
+		if err != nil {
+			log.Panic(err)
+		}
+		prevTXs[hex.EncodeToString(prevTX.TxHash)] = prevTX
+	}
+	tx.Sign(private, prevTXs)
 }
 
-func (bc *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
+func (bc *BlockChain) FindTransaction(ID []byte, txs []*Transaction) (Transaction, error) {
+
+	for _, tx := range txs {
+		if bytes.Compare(tx.TxHash, ID) == 0 {
+			return *tx, nil
+		}
+	}
+
 	var block *Block
 	currentHash := bc.Tip
 	var trx *Transaction
@@ -310,14 +324,81 @@ func (bc *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
 }
 
 //验证数字签名
-func (bc *BlockChain) VerifyTransaction(tx *Transaction) bool {
+func (bc *BlockChain) VerifyTransaction(tx *Transaction, txs []*Transaction) bool {
 	prevTXs := make(map[string]Transaction)
 	for _, vin := range tx.Vins {
-		prevTX, err := bc.FindTransaction(vin.TxHash)
+		prevTX, err := bc.FindTransaction(vin.TxHash, txs)
 		if err != nil {
 			log.Panic(err)
 		}
 		prevTXs[hex.EncodeToString(prevTX.TxHash)] = prevTX
 	}
 	return tx.Verify(prevTXs)
+}
+
+func (bc *BlockChain) FindUTXOMap() map[string]*TxOutputs {
+	var block *Block
+	currentHash := bc.Tip
+	utxoMaps := map[string]*TxOutputs{}
+	spentAbleUTXOMap := make(map[string][]*TxInput)
+	for {
+		if err := bc.DB.View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(blockTableName))
+			if b == nil {
+				return errors.New("EOF")
+			}
+			data := b.Get(currentHash)
+			if data == nil {
+				return errors.New("EOF")
+			}
+			block = DeSerialize(data)
+			//
+
+			for i := len(block.Txs) - 1; i >= 0; i-- {
+
+				txOutputs := &TxOutputs{[]*UTXO{}}
+				tx := block.Txs[i]
+				txHash := hex.EncodeToString(tx.TxHash)
+				if !tx.IsCoinbaseTransaction() {
+					for _, txInput := range tx.Vins {
+						txHash := hex.EncodeToString(txInput.TxHash)
+						spentAbleUTXOMap[txHash] = append(spentAbleUTXOMap[txHash], txInput)
+					}
+				}
+
+			outLab:
+				for outIndex, out := range tx.Vouts {
+					if txInputs, ok := spentAbleUTXOMap[txHash]; ok {
+						isSpent := false
+						for _, in := range txInputs {
+							outPublicKey := out.Ripemd160Hash
+							inPublicKey := in.PublicKey
+							if bytes.Compare(outPublicKey, Ripemd160Hash(inPublicKey)) == 0 {
+								if outIndex == in.Vout {
+									isSpent = true
+									continue outLab
+								}
+							}
+						}
+						if !isSpent {
+							utxo := &UTXO{tx.TxHash, outIndex, out}
+							txOutputs.UTXOS = append(txOutputs.UTXOS, utxo)
+						}
+					} else {
+						utxo := &UTXO{tx.TxHash, outIndex, out}
+						txOutputs.UTXOS = append(txOutputs.UTXOS, utxo)
+					}
+				}
+
+				utxoMaps[txHash] = txOutputs
+			}
+
+			//
+			currentHash = block.PrevHash
+			return nil
+		}); err != nil {
+			break
+		}
+	}
+	return utxoMaps
 }

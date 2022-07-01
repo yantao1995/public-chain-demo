@@ -86,6 +86,7 @@ func NewSimpleTransaction(from, to string, amount int, bc *BlockChain, txs []*Tr
 	tx.HashTransaction()
 
 	//进行签名
+	bc.SignTransaction(tx, wallet.PrivateKey, txs)
 
 	return tx
 }
@@ -194,7 +195,7 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 		x.SetBytes(vin.PublicKey[:(keyLen / 2)])
 		y.SetBytes(vin.PublicKey[(keyLen / 2):])
 
-		rawPubKey := ecdsa.PublicKey{curve, &x, &y}
+		rawPubKey := ecdsa.PublicKey{Curve: curve, X: &x, Y: &y}
 		if !ecdsa.Verify(&rawPubKey, txCopy.TxHash, &r, &s) {
 			return false
 		}

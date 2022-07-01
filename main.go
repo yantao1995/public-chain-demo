@@ -21,7 +21,7 @@ func main() {
 	fmt.Println("-----------------------")
 	fmt.Println("_ balance_  a :", blockChain.GetBalance("1NVE728oqBcr1YMnWZ1RQADYdewxoeKuPp"))
 	fmt.Println("-----------------------")
-	blockChain.MineNewBlock([]string{"1NVE728oqBcr1YMnWZ1RQADYdewxoeKuPp"}, []string{"1BiqBw8k7hahNRFVb7WPdVF5trUZohYfvc"}, []string{"3"})
+	blockChain.MineNewBlock([]string{"1NVE728oqBcr1YMnWZ1RQADYdewxoeKuPp"}, []string{"1BiqBw8k7hahNRFVb7WPdVF5trUZohYfvc"}, []string{"1"})
 	fmt.Println("\n-----------------------")
 	blockChain.Iterator()
 	fmt.Println("-----------------------")
