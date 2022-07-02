@@ -114,10 +114,11 @@ func (bc *BlockChain) Iterator() {
 //挖矿
 func (bc *BlockChain) MineNewBlock(from, to, amount []string) {
 	//建立新交易
+	utxoSet := &UTXOSet{bc}
 	var txs []*Transaction
 	for index := range from {
 		val, _ := strconv.Atoi(amount[index])
-		tx := NewSimpleTransaction(from[index], to[index], val, bc, txs)
+		tx := NewSimpleTransaction(from[index], to[index], int64(val), utxoSet, txs)
 		txs = append(txs, tx)
 	}
 	//奖励
@@ -358,6 +359,7 @@ func (bc *BlockChain) FindUTXOMap() map[string]*TxOutputs {
 
 				txOutputs := &TxOutputs{[]*UTXO{}}
 				tx := block.Txs[i]
+
 				txHash := hex.EncodeToString(tx.TxHash)
 				if !tx.IsCoinbaseTransaction() {
 					for _, txInput := range tx.Vins {
@@ -401,4 +403,31 @@ func (bc *BlockChain) FindUTXOMap() map[string]*TxOutputs {
 		}
 	}
 	return utxoMaps
+}
+
+//迭代器
+type BlockIterator struct {
+	CurrentHash []byte
+	DB          *bolt.DB
+}
+
+func (bci *BlockIterator) Next() *Block {
+	var block *Block
+	bci.DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(blockTableName))
+		if b != nil {
+			data := b.Get(bci.CurrentHash)
+			if data != nil {
+				block = DeSerialize(data)
+				bci.CurrentHash = block.PrevHash
+			}
+		}
+		return nil
+	})
+	return block
+}
+
+//获取迭代器
+func (bc *BlockChain) NewBlockChainIterator() *BlockIterator {
+	return &BlockIterator{bc.Tip, bc.DB}
 }
