@@ -155,12 +155,33 @@ func (utxoSet *UTXOSet) Update() {
 
 	ins := []*TxInput{}
 
-	//outMap := map[string]*TxOutputs{}
+	outsMap := map[string]*TxOutputs{}
 
 	//找到所有要删除的数据
 	for _, tx := range block.Txs {
 		for _, in := range tx.Vins {
 			ins = append(ins, in)
+		}
+
+	}
+
+	for _, tx := range block.Txs {
+		utxos := []*UTXO{}
+	outLab:
+		for index, out := range tx.Vouts {
+			for _, in := range ins {
+				if in.Vout == index &&
+					bytes.Compare(out.Ripemd160Hash, Ripemd160Hash(in.PublicKey)) == 0 &&
+					bytes.Compare(tx.TxHash, in.TxHash) == 0 {
+					continue outLab
+				}
+			}
+			utxo := &UTXO{tx.TxHash, index, out}
+			utxos = append(utxos, utxo)
+		}
+		if len(utxos) > 0 {
+			txHash := hex.EncodeToString(tx.TxHash)
+			outsMap[txHash] = &TxOutputs{utxos}
 		}
 	}
 
@@ -171,13 +192,31 @@ func (utxoSet *UTXOSet) Update() {
 				txOutputsBytes := b.Get(in.TxHash)
 				txOutputs := DeSerializeTxOutputs(txOutputsBytes)
 
+				utxos := []*UTXO{}
+
+				//判断是否需要删除
+				isNeedDelete := false
 				for _, utxo := range txOutputs.UTXOS {
-					if in.Vout == utxo.Index {
-						if bytes.Compare(utxo.Output.Ripemd160Hash, Ripemd160Hash(in.PublicKey)) == 0 {
-							b.Delete(in.TxHash)
-						}
+					if in.Vout == utxo.Index && bytes.Compare(utxo.Output.Ripemd160Hash, Ripemd160Hash(in.PublicKey)) == 0 {
+						isNeedDelete = true
+					} else {
+						utxos = append(utxos, utxo)
 					}
 				}
+				if isNeedDelete {
+					b.Delete(in.TxHash)
+					if len(utxos) > 0 {
+						preTXOutputs := outsMap[hex.EncodeToString(in.TxHash)]
+						preTXOutputs.UTXOS = append(preTXOutputs.UTXOS, utxos...)
+						outsMap[hex.EncodeToString(in.TxHash)] = preTXOutputs
+					}
+				}
+			}
+
+			//新增
+			for keyHash, outPuts := range outsMap {
+				keyHashBytes, _ := hex.DecodeString(keyHash)
+				b.Put(keyHashBytes, outPuts.Serialize())
 			}
 		}
 		return nil
